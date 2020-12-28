@@ -32,10 +32,13 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
             tcpH.setTh_sum(CheckSum.computeChkSum(ackPack));
             //回复ACK报文段
             reply(ackPack);
-
-            //将接收到的正确有序的数据插入data队列，准备交付
-            dataQueue.add(recvPack.getTcpS().getData());
-            sequence++;
+            if (recvPack.getTcpH().getTh_seq() != sequence) {
+                //将接收到的正确有序的数据插入data队列，准备交付
+                dataQueue.add(recvPack.getTcpS().getData());
+                sequence = recvPack.getTcpH().getTh_seq();
+            } else {
+                System.out.println("收到重复包,重复seq:" + sequence);
+            }
         } else {
             System.out.println("Recieve Computed: " + CheckSum.computeChkSum(recvPack));
             System.out.println("Recieved Packet" + recvPack.getTcpH().getTh_sum());
@@ -48,7 +51,6 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
         }
 
         System.out.println();
-
 
         //交付数据（每20组数据交付一次）
         if (dataQueue.size() == 20)
