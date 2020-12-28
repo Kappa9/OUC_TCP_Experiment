@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="TCP_Win_TestSys">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/lib/TCP_Win_TestSys.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
