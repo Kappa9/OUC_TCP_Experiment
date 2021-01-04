@@ -1,40 +1,20 @@
-/***************************2.1: ACK/NACK**************************** Feng Hong; 2015-12-09*/
 package com.ouc.tcp.test;
 
-import com.ouc.tcp.client.Client;
 import com.ouc.tcp.client.TCP_Sender_ADT;
-import com.ouc.tcp.client.UDT_RetransTask;
 import com.ouc.tcp.client.UDT_Timer;
 import com.ouc.tcp.message.*;
-import com.ouc.tcp.tool.TCP_TOOL;
-
-import java.util.TimerTask;
 
 public class TCP_Sender extends TCP_Sender_ADT {
     private TCP_PACKET tcpPack;    //待发送的TCP数据报
-    private volatile int flag = 0;
     UDT_Timer timer;
+
+    Window_Sender sendWindow;
 
     /*构造函数*/
     public TCP_Sender() {
         super();    //调用超类构造函数
         super.initTCP_Sender(this);        //初始化TCP发送端
-    }
-
-    class My_UDT_RetransTask extends TimerTask {
-        private Client senderClient;
-        private TCP_PACKET reTransPacket;
-
-        public My_UDT_RetransTask(Client client, TCP_PACKET packet) {
-            this.senderClient = client;
-            this.reTransPacket = packet;
-        }
-
-        @Override
-        public void run() {
-            System.out.println("超时重发包");
-            this.senderClient.send(this.reTransPacket);
-        }
+        sendWindow = new Window_Sender(client);
     }
 
     @Override
@@ -44,31 +24,37 @@ public class TCP_Sender extends TCP_Sender_ADT {
         //生成TCP数据报（设置序号和数据字段/校验和),注意打包的顺序
         tcpH.setTh_seq(dataIndex * appData.length + 1);//包序号设置为字节流号：
         tcpS.setData(appData);
-        tcpPack = new TCP_PACKET(tcpH, tcpS, destinAddr);
+        tcpH.setTh_eflag((byte) 7);
+        try {
+            tcpPack = new TCP_PACKET(tcpH.clone(), tcpS.clone(), destinAddr);
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
 
         tcpH.setTh_sum(CheckSum.computeChkSum(tcpPack));
         tcpPack.setTcpH(tcpH);
-
         //发送TCP数据报
-        udt_send(tcpPack);
-        flag = 0;
-
-        //设置计时器和超时重传任务
-        timer = new UDT_Timer();
-        UDT_RetransTask reTrans = new UDT_RetransTask(client, tcpPack);
-        //每隔3秒执行重传，直到收到ACK
-        timer.schedule(reTrans, 3000, 3000);
-
-        //等待ACK报文
-        waitACK();
+        try {
+            this.sendWindow.rdt_send(tcpPack);
+        } catch (CloneNotSupportedException e) {
+            e.printStackTrace();
+        }
+        //udt_send(tcpPack);
+        while (!sendWindow.canContinue()){
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     //不可靠发送：将打包好的TCP数据报通过不可靠传输信道发送；仅需修改错误标志
+    //逻辑已转入Window_Sender中Rdt_Send方法
     public void udt_send(TCP_PACKET stcpPack) {
         //设置错误控制标志
-        tcpH.setTh_eflag((byte) 4);
-        //System.out.println("to send: "+stcpPack.getTcpH().getTh_seq());
+        tcpH.setTh_eflag((byte) 7);
         //发送数据报
         client.send(stcpPack);
     }
@@ -76,26 +62,7 @@ public class TCP_Sender extends TCP_Sender_ADT {
     @Override
     //需要修改
     public void waitACK() {
-        //循环检查ackQueue
-        //循环检查确认号对列中是否有新收到的ACK
-        while (true) {
-            if (!ackQueue.isEmpty()) {
-                int currentAck = ackQueue.poll();
-                System.out.println("CurrentAck: " + currentAck);
-                if (currentAck == tcpPack.getTcpH().getTh_seq()) {
-                    System.out.println("Clear: " + tcpPack.getTcpH().getTh_seq());
-                    flag = 1;
-                    //停止等待时需关闭计时器
-                    System.out.println("关闭计时器");
-                    timer.cancel();
-                    break;
-                } else {
-                    System.out.println("Retransmit: " + tcpPack.getTcpH().getTh_seq());
-                    udt_send(tcpPack);
-                    flag = 0;
-                }
-            }
-        }
+        //等待ACK报文，已经转入其他方法
     }
 
     @Override
@@ -103,13 +70,10 @@ public class TCP_Sender extends TCP_Sender_ADT {
     public void recv(TCP_PACKET recvPack) {
         if (CheckSum.computeChkSum(recvPack) == recvPack.getTcpH().getTh_sum()) {
             System.out.println("Receive ACK Number： " + recvPack.getTcpH().getTh_ack());
-            ackQueue.add(recvPack.getTcpH().getTh_ack());
+            sendWindow.recv(recvPack);
         } else {
             System.out.println("Receive Wrong ACK Number");
-            ackQueue.add(-1);
         }
         System.out.println();
-        //处理ACK报文
-        //waitACK();
     }
 }
