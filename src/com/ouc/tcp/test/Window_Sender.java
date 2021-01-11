@@ -26,6 +26,7 @@ public class Window_Sender {
     int windowSize = 100; //暂时固定窗口大小
     Client client;
 
+    //按照窗口头的标号判断是否可以继续发包
     public boolean canContinue() {
         int num = this.startWindowIndex + this.windowSize - this.endWindowIndex;
         return num > 0;
@@ -58,6 +59,7 @@ public class Window_Sender {
         if (!isFirst) logger.warning("重新发送包:" + window.packet.getTcpH().getTh_seq());
     }
 
+    //超时处理
     public void waitOvertime() {
         TimerTask dealOverTime = new TimerTask() {
             @Override
@@ -84,6 +86,7 @@ public class Window_Sender {
         timer.schedule(dealOverTime, 0, 200);
     }
 
+    //收到ACK，按照规则重新设置窗口头index
     public void recv(TCP_PACKET recvPack) {
         int ack = recvPack.getTcpH().getTh_ack();
         Window window;

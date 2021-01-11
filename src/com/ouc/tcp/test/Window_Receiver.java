@@ -34,7 +34,7 @@ public class Window_Receiver {
         });
     }
 
-    public void addRecvPacket(TCP_PACKET packet) {
+    public void recvPacket(TCP_PACKET packet) {
         // 判断是否有序
         int seq = packet.getTcpH().getTh_seq();
         if ((seq == lastSaveSeq + lastLength) || lastSaveSeq == -1) {

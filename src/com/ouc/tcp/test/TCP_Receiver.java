@@ -28,7 +28,7 @@ public class TCP_Receiver extends TCP_Receiver_ADT {
             //回复ACK报文段
             reply(ackPack);
             // 加内容加到缓存区
-            receivewindow.addRecvPacket(recvPack);
+            receivewindow.recvPacket(recvPack);
         } else {
             System.out.println("Recieve Computed: " + CheckSum.computeChkSum(recvPack));
             System.out.println("Recieved Packet" + recvPack.getTcpH().getTh_sum());
